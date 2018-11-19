@@ -35,7 +35,7 @@
 		if(success){
             success = false;
 			var result = window.providedFunc(0,0,0,0);
-			if(result && result.constructor === Number){
+			if(result !== undefined && result.constructor === Number){
                 success = true;
                /// if(result === Nan){
                    /// success = false;
@@ -44,10 +44,6 @@
 		}
 
 		if(success && window.providedFunc && typeof(providedFunc) == "function"){
-
-			console.log("Success!");
-            //change EXP things... if it was here
-
 			var elems = document.getElementsByClassName("highlight-if-invalid");
 			for(var i=0;i<elems.length;i++){
 				elems[i].style.color = "";
@@ -55,9 +51,6 @@
             updateFancyLatexDisplay();
 			document.getElementById("functionTextLHS").style.backgroundColor = "";
             document.getElementById("functionTextRHS").style.backgroundColor = "";
-
-
-			//three.render();
 
 		}else{
 			var elems = document.getElementsByClassName("highlight-if-invalid");

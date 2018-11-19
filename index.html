@@ -136,210 +136,197 @@
 	<script src="3DFunctionPlotter_files/MarchingCubes.js"></script>
     <script src="3DFunctionPlotter_files/implicitFunctionTextBoxInput.js"></script>
     <script src="3DFunctionPlotter_files/materialsandgui.js"></script>
-</head>
-
-<body>
-
-	<div id="container"><canvas width="1360" height="827" style="width: 1360px; height: 827px; position: absolute; top: 0px; left: 0px; color: black;"></canvas></div>
-	</div>
 
 
+    <script>
+	if ( WEBGL.isWebGLAvailable() === false ) {
 
+		document.body.appendChild( WEBGL.getWebGLErrorMessage() );
 
-	<script>
-		if ( WEBGL.isWebGLAvailable() === false ) {
+	}
 
-			document.body.appendChild( WEBGL.getWebGLErrorMessage() );
+	var MARGIN = 0;
 
+	var SCREEN_WIDTH = window.innerWidth;
+	var SCREEN_HEIGHT = window.innerHeight - 2 * MARGIN;
+
+	var container;
+
+	var camera, scene, renderer;
+
+	var mesh, texture, geometry, materials, material, current_material;
+
+	var light, pointLight, ambientLight;
+
+	var effect, resolution, numBlobs;
+
+	var effectController;
+
+	var controls;
+
+	var time = 0;
+	var clock = new THREE.Clock();
+
+    var paused = false;
+
+	function init() {
+
+		container = document.getElementById( 'container' );
+
+		// CAMERA
+
+		camera = new THREE.PerspectiveCamera( 45, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 10000 );
+		camera.position.set( -500, 500, 1500 );
+
+		// SCENE
+		scene = new THREE.Scene();
+
+		// LIGHTS
+		light = new THREE.DirectionalLight( 0xffffff );
+		light.position.set( 0.5, 0.5, 1 );
+		scene.add( light );
+
+		light2 = new THREE.DirectionalLight( 0xffffff );
+		light2.position.set( -0.5, -0.5, -1 );
+		scene.add( light2 );
+
+		pointLight = new THREE.PointLight( 0xff3300 );
+		pointLight.position.set( 0, 0, 20 );
+		scene.add( pointLight );
+
+		pointLight2 = new THREE.PointLight( 0xff3300 );
+		pointLight2.position.set( 0, -20, -20 );
+		scene.add( pointLight2 );
+
+		pointLight3 = new THREE.PointLight( 0xff3300 );
+		pointLight3.position.set( 0, 20, -20 );
+		scene.add( pointLight3 );
+
+		ambientLight = new THREE.AmbientLight( 0x858585 );
+		scene.add( ambientLight );
+
+		// MATERIALS
+		materials = generateMaterials();
+		current_material = "textured";
+
+		// MARCHING CUBES
+		resolution = 28;
+		numBlobs = 10;
+
+		effect = new THREE.MarchingCubes( resolution, materials[ current_material ].m, true, true );
+		effect.position.set( 0, 0, 0 );
+		effect.scale.set( 700, 700, 700 );
+
+		effect.enableUvs = true;
+		effect.enableColors = false;
+
+		scene.add( effect );
+
+		// RENDERER
+
+		renderer = new THREE.WebGLRenderer();
+		renderer.setPixelRatio( window.devicePixelRatio );
+		renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
+
+		renderer.domElement.style.position = "absolute";
+		renderer.domElement.style.top = MARGIN + "px";
+		renderer.domElement.style.left = "0px";
+
+		container.appendChild( renderer.domElement );
+		renderer.gammaInput = true;
+		renderer.gammaOutput = true;
+        renderer.setClearColor( 0xffffff, 1 );
+
+		// CONTROLS
+
+		controls = new THREE.OrbitControls( camera, renderer.domElement );
+		controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+			controls.dampingFactor = 0.80;
+        controls.autoRotate=true;
+        controls.enableKeys = false;
+
+		// GUI
+		setupGui();
+		// STATS
+		//stats = new Stats();
+		//container.appendChild( stats.dom );
+
+		// EVENTS
+		window.addEventListener( 'resize', onWindowResize, false );
+	}
+	//
+
+	function onWindowResize( event ) {
+		SCREEN_WIDTH = window.innerWidth;
+		SCREEN_HEIGHT = window.innerHeight - 2 * MARGIN;
+		camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+		camera.updateProjectionMatrix();
+		renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
+
+	}
+	function animate() {
+
+		requestAnimationFrame( animate );
+
+		render();
+        
+		//stats.update();
+
+	}
+
+    var last3Deltas = [0,0,0];
+
+	function render() {
+
+		var delta = clock.getDelta();
+
+		if(!paused)time += delta * effectController.speed * 0.5;
+
+        //if fps is choppy (below 30fps) decrease resolution
+        last3Deltas.shift();
+        last3Deltas.push(delta);
+        if(last3Deltas.reduce((accum, currentVal)=>accum + currentVal/10) > 1/30 && effectController.resolution > 30){ 
+            effectController.resolution-=5;
+            gui.__folders['Simulation'].__controllers[1].domElement.childNodes[0].children[0].value -= 5;
+        }
+
+		// marching cubes
+
+		if ( effectController.resolution !== resolution ) {
+			resolution = effectController.resolution;
+			effect.init( Math.floor( resolution ) );
 		}
 
-		var MARGIN = 0;
+    //march the cubes
+		effect.reset(); //clear buffer
 
-		var SCREEN_WIDTH = window.innerWidth;
-		var SCREEN_HEIGHT = window.innerHeight - 2 * MARGIN;
+        let func = (x,y,z, time) => -(Math.sin(x*20) + Math.sin(y*20) + Math.sin(z*20));
+        //func = (x,y,z, time) => ( 0.000001 - (x-0.5) * (x-0.5) - (y-0.5)*(y-0.5) - (z-0.5)*(z-0.5) ) + 0.125*(Math.sin(time*3) + 1.1);
+        //why does the first function not work but the second does? For that matter, I thought marching cubes rendered f()=0 - why are negative values also showing up?
 
-		var container;
+        effect.addFunction(providedFunc, time);
 
-		var camera, scene, renderer;
+	//
 
-		var mesh, texture, geometry, materials, material, current_material;
+		// materials
+			effect.material.color.setHSL( effectController.hue, effectController.saturation, effectController.lightness );
+            //effect.material.shininess = effectController.shininess;
 
-		var light, pointLight, ambientLight;
+		// lights
 
-		var effect, resolution, numBlobs;
+		light.position.set( effectController.lx, effectController.ly, effectController.lz );
+		light.position.normalize();
 
-		var effectController;
+		pointLight.color.setHSL( effectController.lhue, effectController.lsaturation, effectController.llightness );
 
-		var controls;
+        controls.update(delta);
+		// render
+			//renderer.clearColor();
+			renderer.render( scene, camera );
 
-		var time = 0;
-		var clock = new THREE.Clock();
-
-var paused = false;
-
-		function init() {
-
-			container = document.getElementById( 'container' );
-
-			// CAMERA
-
-			camera = new THREE.PerspectiveCamera( 45, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 10000 );
-			camera.position.set( -500, 500, 1500 );
-
-			// SCENE
-			scene = new THREE.Scene();
-
-			// LIGHTS
-			light = new THREE.DirectionalLight( 0xffffff );
-			light.position.set( 0.5, 0.5, 1 );
-			scene.add( light );
-
-			light2 = new THREE.DirectionalLight( 0xffffff );
-			light2.position.set( -0.5, -0.5, -1 );
-			scene.add( light2 );
-
-			pointLight = new THREE.PointLight( 0xff3300 );
-			pointLight.position.set( 0, 0, 20 );
-			scene.add( pointLight );
-
-			pointLight2 = new THREE.PointLight( 0xff3300 );
-			pointLight2.position.set( 0, -20, -20 );
-			scene.add( pointLight2 );
-
-			pointLight3 = new THREE.PointLight( 0xff3300 );
-			pointLight3.position.set( 0, 20, -20 );
-			scene.add( pointLight3 );
-
-			ambientLight = new THREE.AmbientLight( 0x858585 );
-			scene.add( ambientLight );
-
-			// MATERIALS
-			materials = generateMaterials();
-			current_material = "textured";
-
-			// MARCHING CUBES
-			resolution = 28;
-			numBlobs = 10;
-
-			effect = new THREE.MarchingCubes( resolution, materials[ current_material ].m, true, true );
-			effect.position.set( 0, 0, 0 );
-			effect.scale.set( 700, 700, 700 );
-
-			effect.enableUvs = true;
-			effect.enableColors = false;
-
-			scene.add( effect );
-
-			// RENDERER
-
-			renderer = new THREE.WebGLRenderer();
-			renderer.setPixelRatio( window.devicePixelRatio );
-			renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
-
-			renderer.domElement.style.position = "absolute";
-			renderer.domElement.style.top = MARGIN + "px";
-			renderer.domElement.style.left = "0px";
-
-			container.appendChild( renderer.domElement );
-			renderer.gammaInput = true;
-			renderer.gammaOutput = true;
-            renderer.setClearColor( 0xffffff, 1 );
-
-			// CONTROLS
-
-			controls = new THREE.OrbitControls( camera, renderer.domElement );
-			controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-				controls.dampingFactor = 0.80;
-            controls.autoRotate=true;
-            controls.enableKeys = false;
-
-			// GUI
-			setupGui();
-			// STATS
-			//stats = new Stats();
-			//container.appendChild( stats.dom );
-
-			// EVENTS
-			window.addEventListener( 'resize', onWindowResize, false );
-		}
-		//
-
-		function onWindowResize( event ) {
-			SCREEN_WIDTH = window.innerWidth;
-			SCREEN_HEIGHT = window.innerHeight - 2 * MARGIN;
-			camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
-			camera.updateProjectionMatrix();
-			renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
-
-		}
-		function animate() {
-
-			requestAnimationFrame( animate );
-
-			render();
-            
-			//stats.update();
-
-		}
-
-        var last3Deltas = [0,0,0];
-
-		function render() {
-
-			var delta = clock.getDelta();
-
-			if(!paused)time += delta * effectController.speed * 0.5;
-
-            //if fps is choppy (below 30fps) decrease resolution
-            last3Deltas.shift();
-            last3Deltas.push(delta);
-            if(last3Deltas.reduce((accum, currentVal)=>accum + currentVal/10) > 1/30 && effectController.resolution > 30){ 
-                effectController.resolution-=5;
-                gui.__folders['Simulation'].__controllers[1].domElement.childNodes[0].children[0].value -= 5;
-            }
-
-			// marching cubes
-
-			if ( effectController.resolution !== resolution ) {
-				resolution = effectController.resolution;
-				effect.init( Math.floor( resolution ) );
-			}
-
-        //march the cubes
-			effect.reset(); //clear buffer
-
-            let func = (x,y,z, time) => -(Math.sin(x*20) + Math.sin(y*20) + Math.sin(z*20));
-            //func = (x,y,z, time) => ( 0.000001 - (x-0.5) * (x-0.5) - (y-0.5)*(y-0.5) - (z-0.5)*(z-0.5) ) + 0.125*(Math.sin(time*3) + 1.1);
-            //why does the first function not work but the second does? For that matter, I thought marching cubes rendered f()=0 - why are negative values also showing up?
-
-            effect.addFunction(providedFunc, time);
-
-		//
-
-			// materials
-				effect.material.color.setHSL( effectController.hue, effectController.saturation, effectController.lightness );
-                //effect.material.shininess = effectController.shininess;
-
-			// lights
-
-			light.position.set( effectController.lx, effectController.ly, effectController.lz );
-			light.position.normalize();
-
-			pointLight.color.setHSL( effectController.lhue, effectController.lsaturation, effectController.llightness );
-
-            controls.update(delta);
-			// render
-				//renderer.clearColor();
-				renderer.render( scene, camera );
-
-		}
-
-</script>
-
-<script>
-
+	}
 	function queueTextUpdate(){
-		window.setTimeout(updateText,1); //hack because I still don't know how to wait
+		window.setTimeout(updateText,1);
 	}
 	function setup(){
 		queueTextUpdate();
@@ -366,52 +353,56 @@ var paused = false;
         window.setTimeout(setup,1);
     }
 
+    function setupPresetButtons(){
+        var elems = document.getElementsByClassName("preset");
+        for(var i=0;i<elems.length;i++){
+            
+            elems[i].onclick = function(self){
+                let eqn = self.target.dataset["eqn"].split("=");
+                document.getElementById("functionTextLHS").value=eqn[0];
+                document.getElementById("functionTextRHS").value=eqn[1];
+                queueTextUpdate();
+            };
+        }
+    }
 
+    let MQ = MathQuill.getInterface(2);
+    function updateFancyLatexDisplay(){
 
+		    var lhsText = document.getElementById("functionTextLHS").value;
+            var rhsText = document.getElementById("functionTextRHS").value;
+       
+            var totalEquation = lhsText + "=" + rhsText;
+            totalEquation = totalEquation.replace(/[*]/g,""); //a^b -> a**b, to use JS's exponent
+		    for(var name of ['sin','cos','atan','tan','sqrt','exp','abs']){
+			     totalEquation = totalEquation.replace(new RegExp(name,'g'),"\\text{"+name+'}');
+		    }
+            totalEquation = totalEquation.replace(/time/g,'t');
+            var elem = document.getElementById('latexrendering');
+            elem.innerHTML = totalEquation;
+
+            MQ.StaticMath(elem);
+    }
 </script>
+</head>
+
+<body>
+
+	<div id="container"><canvas width="1360" height="827" style="width: 1360px; height: 827px; position: absolute; top: 0px; left: 0px; color: black;"></canvas></div>
+	</div>
+
+
+
+
 <div id="label">
 
         <div id="inputbox">
 		    <div id="errormessage"></div>
-		    <input type="text" class="mathinput" value="x+y+z+sin(x)" id="functionTextLHS" onkeyup="queueTextUpdate()"></input>=<input type="text" class="mathinput" id="functionTextRHS" value="0" onkeyup="queueTextUpdate()"></input>
+		    <input type="text" class="mathinput" value="x+y+z+sin(x)" id="functionTextLHS" onkeyup="queueTextUpdate()"></input>=<input type="text" class="mathinput" id="functionTextRHS" value="0+sin(z*time)" onkeyup="queueTextUpdate()"></input>
         </div>
 </div>
 <div id="latexrenderingcontainer"><span id="latexrendering"></span></div>
 
-<script>
-let MQ = MathQuill.getInterface(2);
-function updateFancyLatexDisplay(){
-
-		var lhsText = document.getElementById("functionTextLHS").value;
-        var rhsText = document.getElementById("functionTextRHS").value;
-   
-        var totalEquation = lhsText + "=" + rhsText;
-        totalEquation = totalEquation.replace(/[*]/g,""); //a^b -> a**b, to use JS's exponent
-		for(var name of ['sin','cos','atan','tan','sqrt','exp','abs']){
-			 totalEquation = totalEquation.replace(new RegExp(name,'g'),"\\text{"+name+'}');
-		}
-        totalEquation = totalEquation.replace(/time/g,'t');
-        var elem = document.getElementById('latexrendering');
-        elem.innerHTML = totalEquation;
-
-        MQ.StaticMath(elem);
-}
-
-function setupPresetButtons(){
-    var elems = document.getElementsByClassName("preset");
-    console.log(5);
-    for(var i=0;i<elems.length;i++){
-        
-        elems[i].onclick = function(self){
-            console.log(self.target);
-            let eqn = self.target.dataset["eqn"].split("=");
-            document.getElementById("functionTextLHS").value=eqn[0];
-            document.getElementById("functionTextRHS").value=eqn[1];
-            queueTextUpdate();
-        };
-    }
-}
-</script>
 
 <div id='presets'>
     <h1> Presets </h1>
