@@ -9,4 +9,4 @@ To use, mouse over the bottom part of the page and type in a function involving 
 
 # Credits
 
-Code adapted from [threejs.org's marching cubes example](https://threejs.org/examples/webgl_marchingcubes.html). It's unpolished and unoptimized, but it graphs things in 3D well. Simulation resolution will automatically drop until 30FPS or greater is maintained. Math rendering done with (MathQuill)[https://mathquill.com].
+Code adapted from [threejs.org's marching cubes example](https://threejs.org/examples/webgl_marchingcubes.html). It's unpolished and unoptimized, but it graphs things in 3D well. Simulation resolution will automatically drop until 30FPS or greater is maintained. Math rendering done with [MathQuill](https://mathquill.com).
