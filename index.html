@@ -290,7 +290,7 @@ var paused = false;
 
 			if(!paused)time += delta * effectController.speed * 0.5;
 
-            //if fps is choppy (below 10fps) decrease resolution
+            //if fps is choppy (below 30fps) decrease resolution
             last3Deltas.shift();
             last3Deltas.push(delta);
             if(last3Deltas.reduce((accum, currentVal)=>accum + currentVal/10) > 1/30 && effectController.resolution > 30){ 
